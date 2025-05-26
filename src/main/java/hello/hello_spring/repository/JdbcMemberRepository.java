@@ -1,20 +1,16 @@
 package hello.hello_spring.repository;
-
 import hello.hello_spring.domain.Member;
-
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-public class JdbcMemberRepository implements MemberRepository{
+public class JdbcMemberRepository implements MemberRepository {
     private final DataSource dataSource;
-
-    public JdbcMemberRepository(DataSource dataSource){
+    public JdbcMemberRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }
-
     @Override
     public Member save(Member member) {
         String sql = "insert into member(name) values(?)";
@@ -39,7 +35,6 @@ public class JdbcMemberRepository implements MemberRepository{
             close(conn, pstmt, rs);
         }
     }
-
     @Override
     public Optional<Member> findById(Long id) {
         String sql = "select * from member where id = ?";
@@ -47,7 +42,7 @@ public class JdbcMemberRepository implements MemberRepository{
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try {
-            conn = dataSource.getConnection();
+            conn = getConnection();
             pstmt = conn.prepareStatement(sql);
             pstmt.setLong(1, id);
             rs = pstmt.executeQuery();
@@ -65,32 +60,6 @@ public class JdbcMemberRepository implements MemberRepository{
             close(conn, pstmt, rs);
         }
     }
-
-    @Override
-    public Optional<Member> findByName(String name) {
-        String sql = "select * from member where name = ?";
-        Connection conn = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            conn = dataSource.getConnection();
-            pstmt = conn.prepareStatement(sql);
-            pstmt.setString(1, name);
-            rs = pstmt.executeQuery();
-            if(rs.next()) {
-                Member member = new Member();
-                member.setId(rs.getLong("id"));
-                member.setName(rs.getString("name"));
-                return Optional.of(member);
-            }
-            return Optional.empty();
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        } finally {
-            close(conn, pstmt, rs);
-        }
-    }
-
     @Override
     public List<Member> findAll() {
         String sql = "select * from member";
@@ -98,7 +67,7 @@ public class JdbcMemberRepository implements MemberRepository{
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try {
-            conn = dataSource.getConnection();
+            conn = getConnection();
             pstmt = conn.prepareStatement(sql);
             rs = pstmt.executeQuery();
             List<Member> members = new ArrayList<>();
@@ -115,7 +84,33 @@ public class JdbcMemberRepository implements MemberRepository{
             close(conn, pstmt, rs);
         }
     }
-
+    @Override
+    public Optional<Member> findByName(String name) {
+        String sql = "select * from member where name = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            conn = getConnection();
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name);
+            rs = pstmt.executeQuery();
+            if(rs.next()) {
+                Member member = new Member();
+                member.setId(rs.getLong("id"));
+                member.setName(rs.getString("name"));
+                return Optional.of(member);
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(conn, pstmt, rs);
+        }
+    }
+    private Connection getConnection() {
+        return DataSourceUtils.getConnection(dataSource);
+    }
     private void close(Connection conn, PreparedStatement pstmt, ResultSet rs) {
         try {
             if (rs != null) {
@@ -139,11 +134,7 @@ public class JdbcMemberRepository implements MemberRepository{
             e.printStackTrace();
         }
     }
-
     private void close(Connection conn) throws SQLException {
-//        DataSourceUtils.releaseConnection(conn, dataSource);
-        if (conn != null) {
-            conn.close(); // ✅ Spring 없이 직접 닫기
-        }
+        DataSourceUtils.releaseConnection(conn, dataSource);
     }
 }
